@@ -1,7 +1,7 @@
 package provider
 
 var (
-	MainnetGRPC = "base-poc.blxrbdn.com:8080"
+	MainnetGRPC = "base.blxrbdn.com:8080"
 	LocalGRPC   = "localhost:8080"
 )
 
