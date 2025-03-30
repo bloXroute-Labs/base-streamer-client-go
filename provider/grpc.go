@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/bloXroute-Labs/base-streamer-client-go/connections"
@@ -40,7 +41,12 @@ func (bc blxrCredentials) RequireTransportSecurity() bool {
 
 // NewCustomGRPCClient connects to custom provider
 func NewCustomGRPCClient(endpoint string) (*GRPCClient, error) {
-	opts := DefaultRPCOpts(endpoint)
+	authHeader, exists := os.LookupEnv("AUTH_HEADER")
+	if !exists || authHeader == "" {
+		return nil, fmt.Errorf("auth header not found")
+	}
+
+	opts := DefaultRPCOpts(endpoint, authHeader)
 	return NewGRPCClientWithOpts(opts)
 }
 
@@ -54,10 +60,10 @@ func NewGRPCLocal() (*GRPCClient, error) {
 	return NewCustomGRPCClient(LocalGRPC)
 }
 
-func DefaultRPCOpts(endpoint string) RPCOpts {
+func DefaultRPCOpts(endpoint string, authHeader string) RPCOpts {
 	return RPCOpts{
 		Endpoint:   endpoint,
-		AuthHeader: os.Getenv("AUTH_HEADER"),
+		AuthHeader: authHeader,
 	}
 }
 
