@@ -5,7 +5,7 @@ go 1.24.1
 replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101503.1-dev.1
 
 require (
-	github.com/bloXroute-Labs/base-streamer-proto v0.0.1
+	github.com/bloXroute-Labs/base-streamer-proto v1.0.0
 	github.com/ethereum/go-ethereum v1.15.5
 	github.com/joho/godotenv v1.5.1
 	google.golang.org/grpc v1.71.0

@@ -97,14 +97,14 @@ func NewGRPCClientWithOpts(opts RPCOpts, dialOpts ...grpc.DialOption) (*GRPCClie
 	return client, nil
 }
 
-// GetNewBlockStream subscribes to newly created block stream
-func (g *GRPCClient) GetNewBlockStream(
+// GetBdnBlockStream subscribes to BDN block stream
+func (g *GRPCClient) GetBdnBlockStream(
 	ctx context.Context,
-) (connections.Streamer[*streamerapi.GetNewBlockStreamResponse], error) {
-	stream, err := g.apiClient.GetNewBlockStream(ctx, &streamerapi.GetNewBlockStreamRequest{})
+) (connections.Streamer[*streamerapi.GetBdnBlockStreamResponse], error) {
+	stream, err := g.apiClient.GetBdnBlockStream(ctx, &streamerapi.GetBdnBlockStreamRequest{})
 	if err != nil {
 		return nil, err
 	}
 
-	return connections.GRPCStream[streamerapi.GetNewBlockStreamResponse](stream, ""), nil
+	return connections.GRPCStream[streamerapi.GetBdnBlockStreamResponse](stream, ""), nil
 }
