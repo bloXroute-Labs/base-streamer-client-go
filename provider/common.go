@@ -8,6 +8,6 @@ var (
 type RPCOpts struct {
 	Endpoint    string
 	DisableAuth bool
-	// UseTLS         bool
-	AuthHeader string
+	UseTLS      bool
+	AuthHeader  string
 }
