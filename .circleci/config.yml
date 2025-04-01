@@ -1,0 +1,101 @@
+version: 2.1
+executors:
+  bxgo:
+    docker:
+      - image: cimg/go:1.24.1
+    environment:
+      PATH: /home/circleci/go/bin:/usr/local/go/bin:/home/circleci/bin:/home/circleci/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      GOPATH: /home/circleci/go
+      WORKSPACE: /home/circleci/go/src/github.com/bloXroute-Labs/base-streamer-client-go
+      GOTRACEBACK: all
+      GOPRIVATE: github.com/bloXroute-Labs
+    working_directory: /home/circleci/go/src/github.com/bloXroute-Labs/base-streamer-client-go
+jobs:
+  init:
+    executor: bxgo
+    steps:
+      - attach_workspace:
+          at: /home/circleci/go
+      - checkout
+      - restore_cache:
+          keys:
+            - go-mod-{{checksum "go.sum"}}
+      - run:
+          name: Configure environment
+          command: |
+            TOKEN=$(cat .netrc | grep password | head -n 1 | cut -d ' ' -f 2 || echo "")
+            git config --global url."https://${TOKEN}:x-oauth-basic@github.com/bloXroute-Labs".insteadOf "https://github.com/bloXroute-Labs" || true
+      - run:
+          name: Download Go dependencies
+          command: go mod tidy
+      - save_cache:
+          key: go-mod-{{checksum "go.sum"}}
+          paths:
+            - "/home/circleci/go/pkg/mod"
+      - persist_to_workspace:
+          root: /home/circleci/go/
+          paths:
+            - src
+            - pkg
+            - bin
+
+  build:
+    executor: bxgo
+    steps:
+      - attach_workspace:
+          at: /home/circleci/go
+      - run:
+          name: Build project
+          command: go build -v ./...
+
+  integration-test:
+    executor: bxgo
+    steps:
+      - attach_workspace:
+          at: /home/circleci/go
+      - run:
+          name: Run main.go as an integration test
+          command: |
+            go run main.go
+          no_output_timeout: 1m
+
+workflows:
+  version: 2
+  release:
+    jobs:
+      - init:
+          context:
+            - circleci
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - build:
+          requires:
+            - init
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - integration-test:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+  
+  test-branch:
+    jobs:
+      - init:
+          context:
+            - circleci
+      - build:
+          requires:
+            - init
+      - integration-test:
+          requires:
+            - build
