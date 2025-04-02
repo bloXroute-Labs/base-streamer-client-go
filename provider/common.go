@@ -1,7 +1,7 @@
 package provider
 
 var (
-	MainnetGRPC = "base.blxrbdn.com:8080"
+	MainnetGRPC = "base.blxrbdn.com:443"
 )
 
 type RPCOpts struct {
