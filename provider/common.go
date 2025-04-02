@@ -2,7 +2,6 @@ package provider
 
 var (
 	MainnetGRPC = "base.blxrbdn.com:8080"
-	LocalGRPC   = "localhost:8080"
 )
 
 type RPCOpts struct {

@@ -57,11 +57,6 @@ func NewGRPCClient() (*GRPCClient, error) {
 	return NewCustomGRPCClient(MainnetGRPC, true)
 }
 
-// NewGRPCLocal connects to local provider
-func NewGRPCLocal() (*GRPCClient, error) {
-	return NewCustomGRPCClient(LocalGRPC, false)
-}
-
 func DefaultRPCOpts(endpoint string, authHeader string, secure bool) RPCOpts {
 	return RPCOpts{
 		Endpoint:   endpoint,
