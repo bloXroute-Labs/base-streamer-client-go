@@ -54,7 +54,7 @@ func NewCustomGRPCClient(endpoint string, secure bool) (*GRPCClient, error) {
 
 // NewGRPCClient connects to main provider
 func NewGRPCClient() (*GRPCClient, error) {
-	return NewCustomGRPCClient(MainnetGRPC, false) // TODO: change to true when we have a secure connection for production
+	return NewCustomGRPCClient(MainnetGRPC, true) // TODO: change to true when we have a secure connection for production
 }
 
 // NewGRPCLocal connects to local provider
