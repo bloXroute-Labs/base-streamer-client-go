@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"os"
 
@@ -9,6 +10,7 @@ import (
 
 	streamerapi "github.com/bloXroute-Labs/base-streamer-proto/streamer_api"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -40,30 +42,26 @@ func (bc blxrCredentials) RequireTransportSecurity() bool {
 }
 
 // NewCustomGRPCClient connects to custom provider
-func NewCustomGRPCClient(endpoint string) (*GRPCClient, error) {
+func NewCustomGRPCClient(endpoint string, secure bool) (*GRPCClient, error) {
 	authHeader, exists := os.LookupEnv("AUTH_HEADER")
 	if !exists || authHeader == "" {
 		return nil, fmt.Errorf("auth header not found")
 	}
 
-	opts := DefaultRPCOpts(endpoint, authHeader)
+	opts := DefaultRPCOpts(endpoint, authHeader, secure)
 	return NewGRPCClientWithOpts(opts)
 }
 
 // NewGRPCClient connects to main provider
 func NewGRPCClient() (*GRPCClient, error) {
-	return NewCustomGRPCClient(MainnetGRPC)
+	return NewCustomGRPCClient(MainnetGRPC, true)
 }
 
-// NewGRPCLocal connects to local provider
-func NewGRPCLocal() (*GRPCClient, error) {
-	return NewCustomGRPCClient(LocalGRPC)
-}
-
-func DefaultRPCOpts(endpoint string, authHeader string) RPCOpts {
+func DefaultRPCOpts(endpoint string, authHeader string, secure bool) RPCOpts {
 	return RPCOpts{
 		Endpoint:   endpoint,
 		AuthHeader: authHeader,
+		UseTLS:     secure,
 	}
 }
 
@@ -76,9 +74,9 @@ func NewGRPCClientWithOpts(opts RPCOpts, dialOpts ...grpc.DialOption) (*GRPCClie
 	)
 
 	transportOption := grpc.WithTransportCredentials(insecure.NewCredentials())
-	// if opts.UseTLS {
-	// 	transportOption = grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{}))
-	// }
+	if opts.UseTLS {
+		transportOption = grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{}))
+	}
 	grpcOpts = append(grpcOpts, transportOption)
 
 	if !opts.DisableAuth {
