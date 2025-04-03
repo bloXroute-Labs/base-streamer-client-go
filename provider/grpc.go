@@ -108,7 +108,7 @@ func (g *GRPCClient) GetBdnBlockStream(
 	}
 
 	options := connections.DefaultReconnectingOptions()
-	reconnectingStreamer, err := connections.NewReconnectingStreamer(factory, options)
+	reconnectingStreamer, err := connections.NewReconnectingStreamer(ctx, factory, options)
 	if err != nil {
 		return nil, err
 	}

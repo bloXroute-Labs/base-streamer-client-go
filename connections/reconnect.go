@@ -3,6 +3,8 @@ package connections
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -60,24 +62,37 @@ func DefaultReconnectingOptions() ReconnectingOptions {
 
 // NewReconnectingStreamer creates a new ReconnectingStreamer with the given factory
 // The factory function is called to create a new Streamer when needed (on first connect or reconnect)
-func NewReconnectingStreamer[T any](factory StreamerFactory[T], options ReconnectingOptions) (*ReconnectingStreamer[T], error) {
-	ctx, cancel := context.WithCancel(context.Background())
+// The provided context controls the lifetime of the ReconnectingStreamer.
+func NewReconnectingStreamer[T any](ctx context.Context, factory StreamerFactory[T], options ReconnectingOptions) (*ReconnectingStreamer[T], error) {
+	// Create a cancellable context derived from the parent context
+	derivedCtx, cancel := context.WithCancel(ctx)
 
 	r := &ReconnectingStreamer[T]{
 		factory:        factory,
-		ctx:            ctx,
-		cancel:         cancel,
+		ctx:            derivedCtx, // Store the derived context
+		cancel:         cancel,     // Store the cancel function for Close()
 		initialBackoff: options.InitialBackoff,
 		maxBackoff:     options.MaxBackoff,
 		backoffFactor:  options.BackoffFactor,
 		logger:         options.Logger,
 	}
 
-	// Initial connection
+	// Initial connection using the derived context for the factory call
+	// Although the factory might use its own context internally (like in the gRPC example),
+	// we check our own context first before attempting connection.
+	select {
+	case <-r.ctx.Done():
+		cancel() // Clean up the derived context
+		return nil, fmt.Errorf("initial connection cancelled by parent context: %w", r.ctx.Err())
+	default:
+		// Continue with initial connection attempt
+	}
+
 	streamer, err := factory()
 	if err != nil {
 		r.logger.Error("failed to create initial streamer: %v", err)
-		return r, err
+		cancel()      // Clean up the derived context if initial connection fails
+		return r, err // Return r so Close() can still be called if needed, along with the error
 	}
 
 	r.currentStreamer = streamer
@@ -105,7 +120,8 @@ func (r *ReconnectingStreamer[T]) Streamer() Streamer[T] {
 			// If context is done, return error
 			select {
 			case <-r.ctx.Done():
-				return zeroValue, errors.New("context canceled")
+				// Use r.ctx.Err() to provide the reason for cancellation
+				return zeroValue, fmt.Errorf("context canceled: %w", r.ctx.Err())
 			default:
 				// Context not canceled, continue with reconnection
 			}
@@ -119,14 +135,16 @@ func (r *ReconnectingStreamer[T]) Streamer() Streamer[T] {
 			backoff := r.initialBackoff
 			for attempts := 0; r.ctx.Err() == nil; attempts++ {
 				r.mu.Unlock()
-				time.Sleep(backoff)
+				// Add jitter (e.g., up to 1 second)
+				jitter := time.Duration(rand.Intn(1000)) * time.Millisecond
+				time.Sleep(backoff + jitter)
 				r.mu.Lock()
 
 				if r.ctx.Err() != nil {
-					break
+					break // Exit loop immediately if context is cancelled during sleep
 				}
 
-				r.logger.Info("attempting reconnection...")
+				r.logger.Info("attempting reconnection (attempt #%d)...", attempts+1)
 
 				newStreamer, err := r.factory()
 				if err == nil {
@@ -155,7 +173,12 @@ func (r *ReconnectingStreamer[T]) Streamer() Streamer[T] {
 			}
 
 			r.mu.Unlock()
-			return zeroValue, errors.New("reconnection failed and context canceled")
+			// Ensure the error reflects the context cancellation if that was the cause
+			finalErr := errors.New("reconnection failed")
+			if r.ctx.Err() != nil {
+				finalErr = fmt.Errorf("reconnection failed: %w", r.ctx.Err())
+			}
+			return zeroValue, finalErr
 		}
 	}
 
