@@ -2,7 +2,6 @@ package examples
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -12,6 +11,7 @@ import (
 	"github.com/bloXroute-Labs/base-streamer-client-go/provider"
 	streamerapi "github.com/bloXroute-Labs/base-streamer-proto/streamer_api"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // ListenForBdnBlocks connects to a BDN and listens for blocks indefinitely
@@ -57,29 +57,24 @@ func ListenForBdnBlocks(numberOfBlocks uint64) error {
 				continue
 			}
 
-			updateTime := time.Now()
-			count++
-
 			blockHeader := &types.Header{}
-			err := blockHeader.UnmarshalJSON(bdnBlock.BlockHeader)
+			err := rlp.DecodeBytes(bdnBlock.BlockHeader, blockHeader)
 			if err != nil {
-				fmt.Printf("Failed to unmarshal block header: %v\n", err)
-				continue
+				return fmt.Errorf("failed to RLP decode block header with: %v", err)
 			}
 
-			var blockBody *types.Body
-			err = json.Unmarshal(bdnBlock.BlockBody, &blockBody)
+			blockBody := &types.Body{}
+			err = rlp.DecodeBytes(bdnBlock.BlockBody, blockBody)
 			if err != nil {
-				fmt.Printf("Failed to unmarshal block body: %v\n", err)
-				continue
+				return fmt.Errorf("failed to RLP decode block body with: %v", err)
 			}
 
-			fmt.Printf("Block #%d: %v, %v txns at %v\n",
+			fmt.Printf("Block #%d: %v, %v txns\n",
 				count,
 				blockHeader.Number.Uint64(),
-				len(blockBody.Transactions),
-				updateTime.UTC())
+				len(blockBody.Transactions))
 
+			count++
 			// If we've reached the requested number of blocks and it's not 0 (indefinite), exit
 			if numberOfBlocks > 0 && count >= numberOfBlocks {
 				return nil
