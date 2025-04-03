@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/bloXroute-Labs/base-streamer-client-go/provider"
@@ -11,43 +14,76 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// ListenForBdnBlocks connects to a BDN and listens for blocks indefinitely
+// If numberOfBlocks is 0, it will listen indefinitely
 func ListenForBdnBlocks(numberOfBlocks uint64) error {
 	grpcClient, err := provider.NewGRPCClient()
 	if err != nil {
 		return err
 	}
+
 	blocksChan := make(chan *streamerapi.GetBdnBlockStreamResponse)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Set up signal handling for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		fmt.Println("Received shutdown signal, closing connections...")
+		cancel()
+	}()
+
+	fmt.Println("Connecting to BDN for block streaming...")
 	stream, err := grpcClient.GetBdnBlockStream(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get stream with: %v", err)
 	}
 	stream.Into(blocksChan)
 
-	fmt.Println("waiting on blocks channel")
-	for range numberOfBlocks {
-		bdnBlock, ok := <-blocksChan
-		if !ok {
-			// channel closed
-			return fmt.Errorf("bdn blocks channel closed")
-		}
-		updateTime := time.Now()
+	fmt.Println("Waiting for blocks...")
+	var count uint64 = 0
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context canceled")
+		case bdnBlock, ok := <-blocksChan:
+			if !ok {
+				// This should not happen with reconnection logic in place
+				// but we'll handle it just in case
+				fmt.Println("Block channel closed unexpectedly, reconnection should happen automatically...")
+				time.Sleep(time.Second) // Brief pause to avoid tight loop
+				continue
+			}
 
-		blockHeader := &types.Header{}
-		err := blockHeader.UnmarshalJSON(bdnBlock.BlockHeader)
-		if err != nil {
-			return fmt.Errorf("failed to unmarshal block header with: %v", err)
-		}
+			updateTime := time.Now()
+			count++
 
-		var blockBody *types.Body
-		err = json.Unmarshal(bdnBlock.BlockBody, &blockBody)
-		if err != nil {
-			return fmt.Errorf("failed to unmarshal block body with: %v", err)
-		}
+			blockHeader := &types.Header{}
+			err := blockHeader.UnmarshalJSON(bdnBlock.BlockHeader)
+			if err != nil {
+				fmt.Printf("Failed to unmarshal block header: %v\n", err)
+				continue
+			}
 
-		fmt.Printf("bdn block: %v, %v txns at %v\n", blockHeader.Number.Uint64(), len(blockBody.Transactions), updateTime.UTC())
+			var blockBody *types.Body
+			err = json.Unmarshal(bdnBlock.BlockBody, &blockBody)
+			if err != nil {
+				fmt.Printf("Failed to unmarshal block body: %v\n", err)
+				continue
+			}
+
+			fmt.Printf("Block #%d: %v, %v txns at %v\n",
+				count,
+				blockHeader.Number.Uint64(),
+				len(blockBody.Transactions),
+				updateTime.UTC())
+
+			// If we've reached the requested number of blocks and it's not 0 (indefinite), exit
+			if numberOfBlocks > 0 && count >= numberOfBlocks {
+				return nil
+			}
+		}
 	}
-	return nil
 }

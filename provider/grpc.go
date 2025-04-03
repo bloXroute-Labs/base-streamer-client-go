@@ -54,7 +54,7 @@ func NewCustomGRPCClient(endpoint string, secure bool) (*GRPCClient, error) {
 
 // NewGRPCClient connects to main provider
 func NewGRPCClient() (*GRPCClient, error) {
-	return NewCustomGRPCClient(MainnetGRPC, true)
+	return NewCustomGRPCClient(MainnetGRPC, false) // TODO: change to true when we have a secure connection for production
 }
 
 // NewGRPCLocal connects to local provider
@@ -104,10 +104,19 @@ func NewGRPCClientWithOpts(opts RPCOpts, dialOpts ...grpc.DialOption) (*GRPCClie
 func (g *GRPCClient) GetBdnBlockStream(
 	ctx context.Context,
 ) (connections.Streamer[*streamerapi.GetBdnBlockStreamResponse], error) {
-	stream, err := g.apiClient.GetBdnBlockStream(ctx, &streamerapi.GetBdnBlockStreamRequest{})
+	factory := func() (connections.Streamer[*streamerapi.GetBdnBlockStreamResponse], error) {
+		stream, err := g.apiClient.GetBdnBlockStream(ctx, &streamerapi.GetBdnBlockStreamRequest{})
+		if err != nil {
+			return nil, err
+		}
+		return connections.GRPCStream[streamerapi.GetBdnBlockStreamResponse](stream, "BDN block stream"), nil
+	}
+
+	options := connections.DefaultReconnectingOptions()
+	reconnectingStreamer, err := connections.NewReconnectingStreamer(factory, options)
 	if err != nil {
 		return nil, err
 	}
 
-	return connections.GRPCStream[streamerapi.GetBdnBlockStreamResponse](stream, ""), nil
+	return reconnectingStreamer.Streamer(), nil
 }
