@@ -106,3 +106,39 @@ func (g *GRPCClient) GetBdnBlockStream(
 
 	return connections.GRPCStream[streamerapi.GetBdnBlockStreamResponse](stream, ""), nil
 }
+
+// GetBdnFlashBlockStream subscribes to BDN flash block stream
+func (g *GRPCClient) GetBdnFlashBlockStream(
+	ctx context.Context,
+) (connections.Streamer[*streamerapi.GetBdnFlashBlockStreamResponse], error) {
+	stream, err := g.apiClient.GetBdnFlashBlockStream(ctx, &streamerapi.GetBdnFlashBlockStreamRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	return connections.GRPCStream[streamerapi.GetBdnFlashBlockStreamResponse](stream, ""), nil
+}
+
+// GetParsedBdnFlashBlockStream subscribes to parsed BDN flash block stream
+func (g *GRPCClient) GetParsedBdnFlashBlockStream(
+	ctx context.Context,
+) (connections.Streamer[*streamerapi.GetParsedBdnFlashBlockStreamResponse], error) {
+	stream, err := g.apiClient.GetParsedBdnFlashBlockStream(ctx, &streamerapi.GetParsedBdnFlashBlockStreamRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	return connections.GRPCStream[streamerapi.GetParsedBdnFlashBlockStreamResponse](stream, ""), nil
+}
+
+// GetBdnFBTxnStateDiffStream subscribes to BDN flash block transaction state diff stream
+func (g *GRPCClient) GetBdnFBTxnStateDiffStream(
+	ctx context.Context,
+) (connections.Streamer[*streamerapi.GetBdnFBTxnStateDiffStreamResponse], error) {
+	stream, err := g.apiClient.GetBdnFBTxnStateDiffStream(ctx, &streamerapi.GetBdnFBTxnStateDiffStreamRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	return connections.GRPCStream[streamerapi.GetBdnFBTxnStateDiffStreamResponse](stream, ""), nil
+}
