@@ -23,6 +23,7 @@ type GRPCClient struct {
 	streamerapi.UnimplementedApiServer
 
 	apiClient streamerapi.ApiClient
+	Endpoint  string
 }
 
 type blxrCredentials struct {
@@ -91,6 +92,7 @@ func NewGRPCClientWithOpts(opts RPCOpts, dialOpts ...grpc.DialOption) (*GRPCClie
 
 	client := &GRPCClient{
 		apiClient: streamerapi.NewApiClient(conn),
+		Endpoint:  opts.Endpoint,
 	}
 	return client, nil
 }
