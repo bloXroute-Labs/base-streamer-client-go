@@ -133,11 +133,14 @@ func (g *GRPCClient) GetParsedBdnFlashBlockStream(
 	return connections.GRPCStream[streamerapi.GetParsedBdnFlashBlockStreamResponse](stream, ""), nil
 }
 
-// GetBdnFBTxnStateDiffStream subscribes to BDN flash block transaction state diff stream
+// GetBdnFBTxnStateDiffStream subscribes to BDN flash block transaction state diff stream, optionally filter by mentioned addresses
 func (g *GRPCClient) GetBdnFBTxnStateDiffStream(
 	ctx context.Context,
+	addresses []string,
 ) (connections.Streamer[*streamerapi.GetBdnFBTxnStateDiffStreamResponse], error) {
-	stream, err := g.apiClient.GetBdnFBTxnStateDiffStream(ctx, &streamerapi.GetBdnFBTxnStateDiffStreamRequest{})
+	stream, err := g.apiClient.GetBdnFBTxnStateDiffStream(ctx, &streamerapi.GetBdnFBTxnStateDiffStreamRequest{
+		Addresses: addresses,
+	})
 	if err != nil {
 		return nil, err
 	}
