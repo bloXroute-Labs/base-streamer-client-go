@@ -8,7 +8,7 @@ import (
 func main() {
 	_ = godotenv.Load()
 
-	err := examples.ListenForBdnBlocks(10)
+	err := examples.ListenForParsedBdnFlashBlocks(10)
 	if err != nil {
 		panic(err)
 	}
